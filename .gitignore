@@ -1,0 +1,33 @@
+/.cache
+/build/
+/sdkconfig
+/sdkconfig.old
+/bootloader/build/
+/bootloader/sdkconfig
+/bootloader/sdkconfig.old
+/.project
+/.cproject
+/.settings
+/.vscode
+/.idea
+*.pyc
+# CMake intermediate files
+CMakeLists.txt.user
+CMakeCache.txt
+*.cmake
+*.bin
+*.elf
+*.map
+*.d
+
+# Certs and secrets
+certs/*.pem
+
+# Core dumps
+core
+*.core
+
+# Other
+.DS_Store
+*.swp
+*.swo

@@ -1,0 +1,16 @@
+dependencies:
+  idf:
+    source:
+      type: idf
+    version: 5.4.1
+  nimble_central_utils:
+    dependencies: []
+    source:
+      path: C:\Users\yuta\Espressif\frameworks\esp-idf-v5.4.1\examples\bluetooth\nimble\common\nimble_central_utils
+      type: local
+    version: '*'
+direct_dependencies:
+- nimble_central_utils
+manifest_hash: a96210078aba890c7babfbb157442680c954f621cea7abedf717a591bcbecb39
+target: esp32
+version: 2.0.0

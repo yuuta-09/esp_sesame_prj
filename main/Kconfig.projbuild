@@ -1,0 +1,35 @@
+# setup wifi ssid and password menu
+menu "WiFi Configuration"
+ menuconfig WIFI_SSID
+    string "WiFi SSID"
+    default "your_wifi_ssid"
+    help
+        Set the WiFi SSID for the device.
+ 
+ menuconfig WIFI_PASSWORD
+    string "WiFi Password"
+    default "your_wifi_password"
+    help
+        Set the WiFi password for the device.
+endmenu
+
+menu "Firebase Settings"
+    menuconfig FIREBASE_EMAIL
+        string "Firebase Email"
+        default "your-email@example.com"
+        help
+            Mail address for firebase authentication.
+    
+    menuconfig FIREBASE_PASSWORD
+        string "Firebase Password"
+        default "your-password"
+        help
+            Password for firebase authentication
+
+    menuconfig FIREBASE_API_KEY
+        string "Firebase API Key"
+        default "your-api-key"
+        help
+            Firebaes API Key(you can get from project settings)
+
+endmenu
