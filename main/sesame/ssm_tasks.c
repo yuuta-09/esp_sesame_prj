@@ -1,5 +1,6 @@
 #include "esp_log.h"
 
+#include "candy.h"
 #include "firebase_sesame/firebase_ssm_cmd.h"
 #include "sesame/ssm.h"
 #include "sesame/ssm_cmd.h"
@@ -13,17 +14,6 @@ static void task_ssm_status_monitoring(void *pvParameters) {
 
   while (1) {
     firebase_ssm_get_current_status(auth_info, &firebase_ssm_status);
-    if (firebase_ssm_status == SSM_STATUS_LOCKED) {
-      ESP_LOGI(TAG, "now firebase ssm is locked");
-    } else if (firebase_ssm_status == SSM_STATUS_UNLOCKED) {
-      ESP_LOGI(TAG, "now firebase ssm is unlocked");
-    }
-
-    if (p_ssms_env->ssm.device_status == SSM_LOCKED) {
-      ESP_LOGI(TAG, "now ssm is locked");
-    } else if (p_ssms_env->ssm.device_status == SSM_UNLOCKED) {
-      ESP_LOGI(TAG, "now ssm is unlocked");
-    }
 
     if (p_ssms_env->ssm.device_status == SSM_LOCKED &&
         firebase_ssm_status == SSM_STATUS_UNLOCKED) {
@@ -32,7 +22,7 @@ static void task_ssm_status_monitoring(void *pvParameters) {
                firebase_ssm_status == SSM_STATUS_LOCKED) {
       firebase_ssm_update_current_status(auth_info, SSM_UNLOCKED);
     }
-    vTaskDelay(pdMS_TO_TICKS(100000)); // 10秒待機
+    vTaskDelay(pdMS_TO_TICKS(10000)); // 10秒待機
   }
 }
 
