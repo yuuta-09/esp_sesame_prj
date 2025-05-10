@@ -5,8 +5,12 @@
 #include "firebase/firebase_common.h"
 #include "firebase/firebase_config.h"
 #include "firebase/firebase_internal.h"
+#include "firebase_database.h"
+#include "freertos/idf_additions.h"
+#include "freertos/projdefs.h"
 
 const char *TAG = "firebase_database";
+SemaphoreHandle_t firebase_https_mutex = NULL;
 
 static char *build_database_url(const char *url_base, const char *path,
                                 const char *id_token_optional) {
@@ -76,39 +80,50 @@ esp_err_t firebase_database_get(const firebase_auth_info_t *auth,
   firebase_response_ctx_t *ctx = NULL;
   esp_http_client_handle_t client = NULL;
 
-  const char *id_token = auth ? auth->id_token : NULL;
-  url = build_database_url(param->url_base, param->path, id_token);
-  if (!url)
-    return ESP_ERR_NO_MEM;
+  if (xSemaphoreTake(firebase_https_mutex, pdMS_TO_TICKS(20000)) == pdTRUE) {
+    const char *id_token = auth ? auth->id_token : NULL;
+    url = build_database_url(param->url_base, param->path, id_token);
+    if (!url) {
+      xSemaphoreGive(firebase_https_mutex);
+      return ESP_ERR_NO_MEM;
+    }
 
-  ctx = firebase_create_response_ctx((firebase_auth_info_t *)auth, param->type);
-  if (!ctx)
-    goto cleanup;
+    ctx =
+        firebase_create_response_ctx((firebase_auth_info_t *)auth, param->type);
+    if (!ctx) {
+      xSemaphoreGive(firebase_https_mutex);
+      goto cleanup;
+    }
 
-  esp_http_client_config_t config = {
-      .url = url,
-      .cert_pem = root_cert_pem_start,
-      .event_handler = _firebase_database_http_event_handler,
-      .user_data = ctx,
-      .timeout_ms = 15000, // 15秒
-      .buffer_size = 2048,
-      .buffer_size_tx = 2048,
-  };
-  client = esp_http_client_init(&config);
-  if (!client)
-    goto cleanup;
+    esp_http_client_config_t config = {
+        .url = url,
+        .cert_pem = root_cert_pem_start,
+        .event_handler = _firebase_database_http_event_handler,
+        .user_data = ctx,
+        .timeout_ms = 15000, // 15秒
+        .buffer_size = 2048,
+        .buffer_size_tx = 2048,
+    };
+    client = esp_http_client_init(&config);
+    if (!client) {
+      xSemaphoreGive(firebase_https_mutex);
+      goto cleanup;
+    }
 
-  esp_http_client_set_method(client, HTTP_METHOD_GET);
-  err = esp_http_client_perform(client);
+    esp_http_client_set_method(client, HTTP_METHOD_GET);
+    err = esp_http_client_perform(client);
 
-  if (ctx->handler_err != ESP_OK)
-    err = ctx->handler_err;
+    if (ctx->handler_err != ESP_OK)
+      err = ctx->handler_err;
 
-  ESP_LOGI(TAG, "HTTP Status = %d, response_code = %d", err,
-           esp_http_client_get_status_code(client));
+    ESP_LOGI(TAG, "HTTP Status = %d, response_code = %d", err,
+             esp_http_client_get_status_code(client));
 
-  if (response_out && ctx->body)
-    *response_out = strdup(ctx->body);
+    if (response_out && ctx->body)
+      *response_out = strdup(ctx->body);
+
+    xSemaphoreGive(firebase_https_mutex);
+  }
 
 cleanup:
   if (client)
@@ -128,40 +143,51 @@ esp_err_t firebase_database_put(const firebase_auth_info_t *auth,
   firebase_response_ctx_t *ctx = NULL;
   esp_http_client_handle_t client = NULL;
 
-  const char *id_token = auth ? auth->id_token : NULL;
-  url = build_database_url(param->url_base, param->path, id_token);
-  if (!url)
-    return ESP_ERR_NO_MEM;
+  if (xSemaphoreTake(firebase_https_mutex, pdMS_TO_TICKS(20000)) == pdTRUE) {
+    const char *id_token = auth ? auth->id_token : NULL;
+    url = build_database_url(param->url_base, param->path, id_token);
+    if (!url) {
+      xSemaphoreGive(firebase_https_mutex);
+      return ESP_ERR_NO_MEM;
+    }
 
-  ctx = firebase_create_response_ctx((firebase_auth_info_t *)auth, param->type);
-  if (!ctx)
-    goto cleanup;
+    ctx =
+        firebase_create_response_ctx((firebase_auth_info_t *)auth, param->type);
+    if (!ctx) {
+      xSemaphoreGive(firebase_https_mutex);
+      goto cleanup;
+    }
 
-  esp_http_client_config_t config = {
-      .url = url,
-      .cert_pem = root_cert_pem_start,
-      .event_handler = _firebase_database_http_event_handler,
-      .user_data = ctx,
-      .timeout_ms = 15000, // 15秒
-      .buffer_size = 2048,
-      .buffer_size_tx = 2048,
-  };
+    esp_http_client_config_t config = {
+        .url = url,
+        .cert_pem = root_cert_pem_start,
+        .event_handler = _firebase_database_http_event_handler,
+        .user_data = ctx,
+        .timeout_ms = 15000, // 15秒
+        .buffer_size = 2048,
+        .buffer_size_tx = 2048,
+    };
 
-  client = esp_http_client_init(&config);
-  if (!client)
-    goto cleanup;
+    client = esp_http_client_init(&config);
+    if (!client) {
+      xSemaphoreGive(firebase_https_mutex);
+      goto cleanup;
+    }
 
-  esp_http_client_set_method(client, HTTP_METHOD_PUT);
-  esp_http_client_set_post_field(client, json_body, strlen(json_body));
-  esp_http_client_set_header(client, "Content-Type", "application/json");
+    esp_http_client_set_method(client, HTTP_METHOD_PUT);
+    esp_http_client_set_post_field(client, json_body, strlen(json_body));
+    esp_http_client_set_header(client, "Content-Type", "application/json");
 
-  err = esp_http_client_perform(client);
+    err = esp_http_client_perform(client);
 
-  if (ctx->handler_err != ESP_OK)
-    err = ctx->handler_err;
+    if (ctx->handler_err != ESP_OK)
+      err = ctx->handler_err;
 
-  ESP_LOGI(TAG, "HTTP Status = %d, response_code = %d", err,
-           esp_http_client_get_status_code(client));
+    ESP_LOGI(TAG, "HTTP Status = %d, response_code = %d", err,
+             esp_http_client_get_status_code(client));
+
+    xSemaphoreGive(firebase_https_mutex);
+  }
 
 cleanup:
   if (client)
@@ -180,39 +206,50 @@ esp_err_t firebase_database_patch(const firebase_auth_info_t *auth,
   firebase_response_ctx_t *ctx = NULL;
   esp_http_client_handle_t client = NULL;
 
-  const char *id_token = auth ? auth->id_token : NULL;
-  url = build_database_url(param->url_base, param->path, id_token);
-  if (!url)
-    return ESP_ERR_NO_MEM;
+  if (xSemaphoreTake(firebase_https_mutex, pdMS_TO_TICKS(20000)) == pdTRUE) {
+    const char *id_token = auth ? auth->id_token : NULL;
+    url = build_database_url(param->url_base, param->path, id_token);
+    if (!url) {
+      xSemaphoreGive(firebase_https_mutex);
+      return ESP_ERR_NO_MEM;
+    }
 
-  ctx = firebase_create_response_ctx((firebase_auth_info_t *)auth, param->type);
-  if (!ctx)
-    goto cleanup;
+    ctx =
+        firebase_create_response_ctx((firebase_auth_info_t *)auth, param->type);
+    if (!ctx) {
+      xSemaphoreGive(firebase_https_mutex);
+      goto cleanup;
+    }
 
-  esp_http_client_config_t config = {
-      .url = url,
-      .cert_pem = root_cert_pem_start,
-      .event_handler = _firebase_database_http_event_handler,
-      .user_data = ctx,
-      .timeout_ms = 15000,
-      .buffer_size = 2048,
-      .buffer_size_tx = 2048,
-  };
-  client = esp_http_client_init(&config);
-  if (!client)
-    goto cleanup;
+    esp_http_client_config_t config = {
+        .url = url,
+        .cert_pem = root_cert_pem_start,
+        .event_handler = _firebase_database_http_event_handler,
+        .user_data = ctx,
+        .timeout_ms = 15000,
+        .buffer_size = 2048,
+        .buffer_size_tx = 2048,
+    };
+    client = esp_http_client_init(&config);
+    if (!client) {
+      xSemaphoreGive(firebase_https_mutex);
+      goto cleanup;
+    }
 
-  esp_http_client_set_method(client, HTTP_METHOD_PATCH);
-  esp_http_client_set_header(client, "Content-Type", "application/json");
-  esp_http_client_set_post_field(client, patch_data, strlen(patch_data));
+    esp_http_client_set_method(client, HTTP_METHOD_PATCH);
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+    esp_http_client_set_post_field(client, patch_data, strlen(patch_data));
 
-  err = esp_http_client_perform(client);
+    err = esp_http_client_perform(client);
 
-  if (ctx->handler_err != ESP_OK)
-    err = ctx->handler_err;
+    if (ctx->handler_err != ESP_OK)
+      err = ctx->handler_err;
 
-  ESP_LOGI(TAG, "PATCH HTTP Status = %d, response_code = %d", err,
-           esp_http_client_get_status_code(client));
+    ESP_LOGI(TAG, "PATCH HTTP Status = %d, response_code = %d", err,
+             esp_http_client_get_status_code(client));
+
+    xSemaphoreGive(firebase_https_mutex);
+  }
 
 cleanup:
   if (client)

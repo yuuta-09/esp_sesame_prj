@@ -1,9 +1,11 @@
 #include "esp_log.h"
+#include "freertos/idf_additions.h"
 #include "nvs_flash.h"
 
 #include "blecent.h"
 #include "firebase/firebase_auth.h"
 #include "firebase/firebase_config.h"
+#include "firebase/firebase_database.h"
 #include "firebase_sesame/firebase_ssm_cmd.h"
 #include "sesame/ssm_tasks.h"
 #include "wifi.h"
@@ -50,6 +52,9 @@ void app_main(void) {
     ESP_LOGI(TAG, "Waiting for ssm connecting...");
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
+
+  // mutexの初期化
+  firebase_https_mutex = xSemaphoreCreateMutex();
 
   // init firebase_auth_info_t
   auth_info = firebase_setup_auth(FIREBASE_EMAIL, FIREBASE_PASSWORD,
