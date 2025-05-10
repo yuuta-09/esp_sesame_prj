@@ -42,7 +42,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -58,7 +57,8 @@ extern "C" {
  * @param from IN -- origin buffer
  * @param from_len IN -- length of origin buffer
  */
-unsigned int _copy(uint8_t * to, unsigned int to_len, const uint8_t * from, unsigned int from_len);
+unsigned int _copy(uint8_t *to, unsigned int to_len, const uint8_t *from,
+                   unsigned int from_len);
 
 /**
  * @brief Set the value 'val' into the buffer 'to', 'len' times.
@@ -67,7 +67,7 @@ unsigned int _copy(uint8_t * to, unsigned int to_len, const uint8_t * from, unsi
  * @param val IN -- value to be set in 'to'
  * @param len IN -- number of times the value will be copied
  */
-void _set(void * to, uint8_t val, unsigned int len);
+void _set(void *to, uint8_t val, unsigned int len);
 
 /*
  * @brief AES specific doubling function, which utilizes
@@ -86,7 +86,9 @@ uint8_t _double_byte(uint8_t a);
  * @param b IN -- sequence of bytes b
  * @param size IN -- size of sequences a and b
  */
-int _compare(const uint8_t * a, const uint8_t * b, size_t size);
+int _compare(const uint8_t *a, const uint8_t *b, size_t size);
+
+int str_is_null_or_empty(const char *str);
 
 #ifdef __cplusplus
 }

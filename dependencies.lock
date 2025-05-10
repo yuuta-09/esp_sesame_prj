@@ -6,11 +6,11 @@ dependencies:
   nimble_central_utils:
     dependencies: []
     source:
-      path: C:\Users\yuta\Espressif\frameworks\esp-idf-v5.4.1\examples\bluetooth\nimble\common\nimble_central_utils
+      path: C:\Users\yuta\yuta-dev\embedded\ESP32_DevKitC\sesame\main\components\nimble_central_utils
       type: local
     version: '*'
 direct_dependencies:
 - nimble_central_utils
-manifest_hash: a96210078aba890c7babfbb157442680c954f621cea7abedf717a591bcbecb39
+manifest_hash: a3ad5409bddeab25f366b0b5e400234e777bebb4fefb9d756d109c572a485d66
 target: esp32
 version: 2.0.0

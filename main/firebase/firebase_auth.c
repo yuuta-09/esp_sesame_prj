@@ -10,7 +10,7 @@
 #include "firebase_common.h"
 #include "firebase_config.h"
 #include "firebase_internal.h"
-#include "utils.h"
+#include "utils/utils.h"
 
 #define TAG "firebase_auth"
 
@@ -178,7 +178,7 @@ static esp_err_t firebase_auth_post(const firebase_auth_info_t *auth,
   const char *base_url = param->url_base;
   url = build_api_url(base_url, auth->api_key);
   ESP_LOGI(TAG, "url: %s", url);
-  if (is_null_or_empty(url)) {
+  if (str_is_null_or_empty(url)) {
     ESP_LOGI(TAG, "url is NULL or empty");
     goto cleanup;
   }
@@ -256,28 +256,29 @@ esp_err_t firebase_perform_auth(firebase_auth_info_t *auth) {
     return ESP_ERR_INVALID_ARG;
   }
 
-  if (is_null_or_empty(auth->api_key)) {
+  if (str_is_null_or_empty(auth->api_key)) {
     ESP_LOGE(TAG, "api_key is NULL or empty");
     return ESP_ERR_INVALID_ARG;
   }
 
-  if (is_null_or_empty(auth->database_url)) {
+  if (str_is_null_or_empty(auth->database_url)) {
     ESP_LOGE(TAG, "database_url is NULL or empty");
     return ESP_ERR_INVALID_ARG;
   }
 
-  if (is_null_or_empty(auth->email) || is_null_or_empty(auth->password)) {
+  if (str_is_null_or_empty(auth->email) ||
+      str_is_null_or_empty(auth->password)) {
     ESP_LOGE(TAG, "email or password is NULL or empty");
     return ESP_ERR_INVALID_ARG;
   }
 
-  if (!is_null_or_empty(auth->id_token) &&
-      !is_null_or_empty(auth->refresh_token)) {
+  if (!str_is_null_or_empty(auth->id_token) &&
+      !str_is_null_or_empty(auth->refresh_token)) {
     return refresh_id_token(auth);
   }
 
-  if (is_null_or_empty(auth->id_token) &&
-      is_null_or_empty(auth->refresh_token)) {
+  if (str_is_null_or_empty(auth->id_token) &&
+      str_is_null_or_empty(auth->refresh_token)) {
     return get_auth_info(auth);
   }
 

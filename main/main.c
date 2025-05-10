@@ -1,23 +1,56 @@
 #include "esp_err.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "freertos/projdefs.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
+#include <stdbool.h>
 
 #include "blecent.h"
+#include "candy.h"
 #include "firebase/firebase_auth.h"
 #include "firebase/firebase_config.h"
 #include "firebase/firebase_internal.h"
 #include "firebase_sesame/firebase_ssm_cmd.h"
+#include "ssm.h"
 #include "ssm_cmd.h"
 #include "wifi.h"
-#include <stdbool.h>
 
 // マクロ定義
 #define TAG "main.c"
 
 // Global変数
-firebase_auth_info_t *auth_info;
+static firebase_auth_info_t *auth_info;
+static bool ssm_connected = false;
+
+// 現在のsesameの状態とfirebaseの状態に差がないかを確認するタスク
+void task_ssm_status_monitoring(void *pvParameters) {
+  firebase_ssm_status_t firebase_ssm_status;
+
+  while (1) {
+    firebase_ssm_get_current_status(auth_info, &firebase_ssm_status);
+    if (firebase_ssm_status == SSM_STATUS_LOCKED) {
+      ESP_LOGI(TAG, "now firebase ssm is locked");
+    } else if (firebase_ssm_status == SSM_STATUS_UNLOCKED) {
+      ESP_LOGI(TAG, "now firebase ssm is unlocked");
+    }
+
+    if (p_ssms_env->ssm.device_status == SSM_LOCKED) {
+      ESP_LOGI(TAG, "now ssm is locked");
+    } else if (p_ssms_env->ssm.device_status == SSM_UNLOCKED) {
+      ESP_LOGI(TAG, "now ssm is unlocked");
+    }
+
+    if (p_ssms_env->ssm.device_status == SSM_LOCKED &&
+        firebase_ssm_status == SSM_STATUS_UNLOCKED) {
+      firebase_ssm_update_current_status(auth_info, SSM_STATUS_LOCKED);
+    } else if (p_ssms_env->ssm.device_status == SSM_UNLOCKED &&
+               firebase_ssm_status == SSM_STATUS_LOCKED) {
+      firebase_ssm_update_current_status(auth_info, SSM_UNLOCKED);
+    }
+    vTaskDelay(pdMS_TO_TICKS(100000)); // 10秒待機
+  }
+}
 
 // 現在のコマンドを1秒間隔で取得するタスク
 void task_sesame_get_command(void *pvParameters) {
@@ -31,12 +64,6 @@ void task_sesame_get_command(void *pvParameters) {
                esp_err_to_name(status));
       continue;
     }
-    ESP_LOGI(TAG, "firebase_ssm_command_get_current_succeeded.");
-    ESP_LOGI(TAG,
-             "Command: type=%d, user_name=%s, is_finished=%d, "
-             "is_success=%d",
-             cmd.cmd_type, cmd.user_name, cmd.is_finished, cmd.is_success);
-
     if (cmd.is_finished == 0 && cmd.cmd_type != SSM_CMD_NONE) {
       // ここで実際のsesameを操作
       if (cmd.cmd_type == SSM_CMD_LOCK) {
@@ -63,6 +90,8 @@ static void ssm_action_handle(sesame *ssm) {
     firebase_ssm_update_current_status(auth_info, SSM_STATUS_UNLOCKED);
   } else if (ssm->device_status == SSM_LOCKED) {
     firebase_ssm_update_current_status(auth_info, SSM_STATUS_LOCKED);
+  } else if (ssm->device_status == SSM_LOGGIN) {
+    ssm_connected = true;
   }
 }
 
@@ -83,7 +112,11 @@ void app_main(void) {
   ssm_init(ssm_action_handle);
   esp_ble_init();
 
-  vTaskDelay(pdMS_TO_TICKS(10000));
+  // ssmが接続するまで待機
+  while (!ssm_connected) {
+    ESP_LOGI(TAG, "Waiting for ssm connecting...");
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
 
   // init firebase_auth_info_t
   auth_info = firebase_setup_auth(FIREBASE_EMAIL, FIREBASE_PASSWORD,
@@ -95,4 +128,6 @@ void app_main(void) {
 
   xTaskCreate(task_sesame_get_command, "sesame command get task", 8192, NULL, 5,
               NULL);
+  xTaskCreate(task_ssm_status_monitoring, "sesame status monitoring task", 8192,
+              NULL, 10, NULL);
 }
